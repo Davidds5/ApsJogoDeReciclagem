@@ -1,15 +1,9 @@
-package java_aps;
+package JogoReciclagem;
 
 import GamePanel.GamePanel;
 
-import javax.swing.JFrame;
-import javax.swing.SwingUtilities;
-import java.awt.CardLayout;
-import java.awt.Color;
-import java.awt.Font;
-import javax.swing.JButton;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
+import javax.swing.*;
+import java.awt.*;
 
 public class JogoReciclagem extends JFrame {
 
@@ -23,53 +17,87 @@ public class JogoReciclagem extends JFrame {
         setLocationRelativeTo(null);
         setResizable(false);
 
-        // Usando CardLayout para alternar entre telas facilmente
+        // Layout principal com CardLayout para alternar telas
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
 
-        // Cria os painéis de tela inicial e de jogo
+        // Criação dos painéis
         TelaInicial telaInicial = new TelaInicial(this);
-        GamePanel gamePanel = new GamePanel(this);
-
         mainPanel.add(telaInicial, "TelaInicial");
-        mainPanel.add(gamePanel, "GamePanel");
 
         setContentPane(mainPanel);
         setVisible(true);
     }
 
-    // Método para iniciar o jogo, chamado da TelaInicial
-    public void iniciarJogo() {
+    // Método para iniciar o jogo com tempo e dificuldade escolhidos
+    public void iniciarJogo(int tempo, int dificuldade) {
+        GamePanel gamePanel = new GamePanel(this, tempo, dificuldade);
+        mainPanel.add(gamePanel, "GamePanel");
         cardLayout.show(mainPanel, "GamePanel");
-        // Garantir foco no painel do jogo para receber teclado
-        ((GamePanel) mainPanel.getComponent(1)).requestFocusInWindow();
+        gamePanel.requestFocusInWindow();
     }
 
-    // Método para voltar à tela inicial
+    // Voltar para a tela inicial
     public void voltarTelaInicial() {
         cardLayout.show(mainPanel, "TelaInicial");
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new JogoReciclagem());
+        SwingUtilities.invokeLater(JogoReciclagem::new);
     }
 
-    // Tela inicial com botão para iniciar o jogo
+    // === TELA INICIAL COM CONFIGURAÇÃO DE TEMPO E DIFICULDADE ===
     public static class TelaInicial extends JPanel {
-        public TelaInicial(JogoReciclagem frame) {
-            setBackground(Color.WHITE);
-            setLayout(null); // Usar layout absoluto para posicionar fácil componentes
 
-            JLabel titulo = new JLabel("Jogo da Reciclagem");
+        public TelaInicial(JogoReciclagem frame) {
+            setLayout(null);
+            setBackground(new Color(240, 255, 240));
+
+            JLabel titulo = new JLabel("Jogo da Reciclagem", SwingConstants.CENTER);
             titulo.setFont(new Font("Arial", Font.BOLD, 36));
-            titulo.setBounds(250, 150, 400, 50);
+            titulo.setBounds(200, 50, 400, 50);
             add(titulo);
 
+            // Tempo do jogo
+            JLabel labelTempo = new JLabel("Tempo do jogo (segundos):");
+            labelTempo.setFont(new Font("Arial", Font.PLAIN, 18));
+            labelTempo.setBounds(250, 150, 300, 30);
+            add(labelTempo);
+
+            JTextField campoTempo = new JTextField("30");
+            campoTempo.setBounds(400, 150, 80, 30);
+            add(campoTempo);
+
+            // Dificuldade
+            JLabel labelDificuldade = new JLabel("Dificuldade:");
+            labelDificuldade.setFont(new Font("Arial", Font.PLAIN, 18));
+            labelDificuldade.setBounds(250, 200, 200, 30);
+            add(labelDificuldade);
+
+            String[] opcoes = {"1 - Fácil", "2 - Médio", "3 - Difícil"};
+            JComboBox<String> comboDificuldade = new JComboBox<>(opcoes);
+            comboDificuldade.setBounds(350, 200, 150, 30);
+            add(comboDificuldade);
+
+            // Botão Iniciar
             JButton btnIniciar = new JButton("Iniciar Jogo");
-            btnIniciar.setBounds(350, 300, 120, 40);
-            btnIniciar.addActionListener(e -> frame.iniciarJogo());
+            btnIniciar.setBounds(300, 300, 200, 50);
+            btnIniciar.setFont(new Font("Arial", Font.BOLD, 18));
+            btnIniciar.addActionListener(e -> {
+                int tempoEscolhido;
+                int dificuldadeEscolhida;
+
+                try {
+                    tempoEscolhido = Integer.parseInt(campoTempo.getText());
+                } catch (NumberFormatException ex) {
+                    tempoEscolhido = 30; // default
+                }
+
+                dificuldadeEscolhida = comboDificuldade.getSelectedIndex() + 1;
+
+                frame.iniciarJogo(tempoEscolhido, dificuldadeEscolhida);
+            });
             add(btnIniciar);
         }
     }
 }
-

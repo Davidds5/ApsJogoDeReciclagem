@@ -1,32 +1,20 @@
 package GamePanel;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Rectangle;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+import Itens.Item;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
-import javax.swing.Timer;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-
+/**
+ * Painel principal do Jogo de Reciclagem.
+ * Controla jogador, itens, pontuação, vidas, tempo e dificuldade.
+ */
 public class GamePanel extends JPanel implements ActionListener, KeyListener {
-
-    private Timer gameTimer;            // Timer para frames do jogo
-    private Timer cronometro;           // Timer para contagem regressiva do tempo
-    private Timer itemGeneratorTimer;   // Timer para geração de itens
 
     private final int width = 800;
     private final int height = 600;
@@ -34,127 +22,146 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     private int playerX, playerY;
     private final int playerSize = 40;
 
-    private List<Item> itens;
-    private Random rand;
-
     private int score = 0;
     private int vidas = 3;
-    private int tempo = 30; // segundos
+    private int tempo;
 
     private boolean esquerda, direita, cima, baixo;
 
-    private JFrame frame;
+    private List<Item> itens;
+    private final Random rand = new Random();
 
-    public GamePanel(JFrame frame) {
+    private int velocidadeBase;
+    private int frequenciaItens;
+
+    private Timer gameTimer;
+    private Timer cronometro;
+    private Timer itemGeneratorTimer;
+
+    private final JFrame frame;
+
+    public GamePanel(JFrame frame, int tempoInicial, int dificuldade) {
         this.frame = frame;
+        this.tempo = tempoInicial;
+
+        // Configura velocidade e frequência dos itens de acordo com a dificuldade
+        switch (dificuldade) {
+            case 1 -> { velocidadeBase = 3; frequenciaItens = 2000; }
+            case 2 -> { velocidadeBase = 5; frequenciaItens = 1500; }
+            case 3 -> { velocidadeBase = 7; frequenciaItens = 1000; }
+            default -> { velocidadeBase = 5; frequenciaItens = 1500; }
+        }
+
         setPreferredSize(new Dimension(width, height));
-        setBackground(Color.WHITE);
+        setBackground(new Color(240, 255, 240)); // fundo verde-claro
         setFocusable(true);
         addKeyListener(this);
 
-        initGame();
+        iniciarJogo();
     }
 
-    public void initGame() {
+    private void iniciarJogo() {
         playerX = width / 2 - playerSize / 2;
         playerY = height - 60;
 
         itens = new ArrayList<>();
-        rand = new Random();
 
-        // Timer do jogo para atualizar frames (~50 FPS)
+        // Timer do loop principal (~50 FPS)
         gameTimer = new Timer(20, this);
         gameTimer.start();
 
-        // Timer do tempo - decrementa a cada segundo
+        // Timer do cronômetro (1 segundo)
         cronometro = new Timer(1000, e -> {
             tempo--;
-            if (tempo <= 0 || vidas <= 0) {
-                endGame();
-            }
+            if (tempo <= 0 || vidas <= 0) encerrarJogo();
             repaint();
         });
         cronometro.start();
 
-        // Timer para gerar itens a cada 1,5 segundo
-        itemGeneratorTimer = new Timer(1500, e -> gerarItem());
+        // Timer para gerar itens
+        itemGeneratorTimer = new Timer(frequenciaItens, e -> gerarItem());
         itemGeneratorTimer.start();
     }
 
     private void gerarItem() {
-        int x = rand.nextInt(width - 20); // Largura do item é 20
+        int x = rand.nextInt(width - 30);
         boolean reciclavel = rand.nextBoolean();
         itens.add(new Item(x, 0, reciclavel));
     }
 
-    private void endGame() {
-        // Para os timers
-        if (gameTimer != null && gameTimer.isRunning()) {
-            gameTimer.stop();
-        }
-        if (cronometro != null && cronometro.isRunning()) {
-            cronometro.stop();
-        }
-        if (itemGeneratorTimer != null && itemGeneratorTimer.isRunning()) {
-            itemGeneratorTimer.stop();
-        }
-
-        // Substituir o painel do jogo pelo painel de fim de jogo
+    private void encerrarJogo() {
+        pararTimers();
         EndGamePanel endPanel = new EndGamePanel(score, frame);
         frame.setContentPane(endPanel);
         frame.revalidate();
         endPanel.requestFocusInWindow();
     }
 
-    @Override
-    public void paintComponent(Graphics g) {
-        super.paintComponent(g);
-
-        // Desenha personagem
-        g.setColor(Color.BLUE);
-        g.fillRect(playerX, playerY, playerSize, playerSize);
-
-        // Desenha itens
-        for (Item item : itens) {
-            item.desenhar(g);
-        }
-
-        // Desenha pontuação, vidas e tempo
-        g.setColor(Color.BLACK);
-        g.setFont(new Font("Arial", Font.BOLD, 18));
-        g.drawString("Pontuação: " + score, 10, 25);
-        g.drawString("Vidas: " + vidas, 10, 50);
-        g.drawString("Tempo: " + tempo, width - 100, 25);
+    private void pararTimers() {
+        if (gameTimer != null) gameTimer.stop();
+        if (cronometro != null) cronometro.stop();
+        if (itemGeneratorTimer != null) itemGeneratorTimer.stop();
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        // Movimentar personagem
-        if (esquerda && playerX > 0) playerX -= 5;
-        if (direita && playerX < width - playerSize) playerX += 5;
-        if (cima && playerY > 0) playerY -= 5;
-        if (baixo && playerY < height - playerSize) playerY += 5;
+        moverJogador();
+        atualizarItens();
+        repaint();
+    }
 
-        // Mover itens
+    private void moverJogador() {
+        int velocidadeAtual = velocidadeBase + (3 - vidas); // aumenta velocidade a cada vida perdida
+
+        if (esquerda && playerX > 0) playerX -= velocidadeAtual;
+        if (direita && playerX < width - playerSize) playerX += velocidadeAtual;
+        if (cima && playerY > 0) playerY -= velocidadeAtual;
+        if (baixo && playerY < height - playerSize) playerY += velocidadeAtual;
+    }
+
+    private void atualizarItens() {
         Iterator<Item> it = itens.iterator();
+        Rectangle jogador = new Rectangle(playerX, playerY, playerSize, playerSize);
+
         while (it.hasNext()) {
             Item item = it.next();
-            item.y += 4; // velocidade dos itens
+            int velocidadeAtual = velocidadeBase + (3 - vidas);
+            item.moverParaBaixo(velocidadeAtual);
 
-            // Verifica colisão com o jogador
-            if (item.getBounds().intersects(new Rectangle(playerX, playerY, playerSize, playerSize))) {
-                if (item.reciclavel) {
-                    score += 10;
-                } else {
-                    vidas--;
-                }
+            if (item.getBounds().intersects(jogador)) {
+                if (item.isReciclavel()) score += 10;
+                else vidas--;
                 it.remove();
-            } else if (item.y > height) {
-                it.remove(); // remove itens que passaram da tela
-            }
+            } else if (item.getY() > height) it.remove();
         }
+    }
 
-        repaint();
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+
+        // Fundo
+        g.setColor(getBackground());
+        g.fillRect(0, 0, width, height);
+
+        // Jogador
+        g.setColor(Color.BLUE);
+        g.fillRect(playerX, playerY, playerSize, playerSize);
+
+        // Itens
+        for (Item item : itens) item.draw(g, this);
+
+        // HUD
+        g.setColor(Color.BLACK);
+        g.setFont(new Font("Arial", Font.BOLD, 18));
+        int padding = 10;
+
+        g.drawString("Pontuação: " + score, padding, 25);
+        g.drawString("Vidas: " + vidas, padding, 50);
+
+        String tempoTexto = "Tempo: " + tempo;
+        int textoLargura = g.getFontMetrics().stringWidth(tempoTexto);
+        g.drawString(tempoTexto, width - textoLargura - padding, 25);
     }
 
     @Override
@@ -180,90 +187,36 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     @Override
     public void keyTyped(KeyEvent e) {}
 
-    // Classe interna Item
-    class Item {
-        int x, y;
-        final int size = 20;
-        boolean reciclavel;
-        Color cor;
-
-        public Item(int x, int y, boolean reciclavel) {
-            this.x = x;
-            this.y = y;
-            this.reciclavel = reciclavel;
-            this.cor = reciclavel ? Color.GREEN : Color.RED;
-        }
-
-        public void desenhar(Graphics g) {
-            g.setColor(cor);
-            g.fillOval(x, y, size, size);
-        }
-
-        public Rectangle getBounds() {
-            return new Rectangle(x, y, size, size);
-        }
-    }
-
-    // Painel para mostrar o fim do jogo
+    // === Painel de fim de jogo ===
     public static class EndGamePanel extends JPanel {
-        private int finalScore;
-        private JFrame frame;
-
         public EndGamePanel(int score, JFrame frame) {
-            this.finalScore = score;
-            this.frame = frame;
-
             setBackground(Color.WHITE);
-            setLayout(null);  // Layout absoluto
+            setLayout(null);
 
-            // Label de pontuação final
-            javax.swing.JLabel label = new javax.swing.JLabel("Fim de Jogo! Sua pontuação: " + finalScore);
+            JLabel label = new JLabel("Fim de Jogo! Sua pontuação: " + score, SwingConstants.CENTER);
             label.setFont(new Font("Arial", Font.BOLD, 24));
-            label.setBounds(200, 150, 400, 50);
+            label.setBounds(150, 150, 500, 50);
             add(label);
 
-            // Botão para fechar o jogo
-            JButton sairBtn = new JButton("Sair");
-            sairBtn.setBounds(350, 250, 100, 40);
-            sairBtn.addActionListener(e -> System.exit(0));
-            add(sairBtn);
+            // Carro do lixo como efeito visual
+            JLabel carro = new JLabel("🚛");
+            carro.setBounds(-100, 300, 100, 50);
+            add(carro);
 
-            // Botão para reiniciar o jogo
-            JButton reiniciarBtn = new JButton("Jogar Novamente");
-            reiniciarBtn.setBounds(320, 320, 160, 40);
-            reiniciarBtn.addActionListener(e -> {
-                // Reinicia o jogo
-                GamePanel newGame = new GamePanel(frame);
-                frame.setContentPane(newGame);
+            JButton btnReiniciar = new JButton("Jogar Novamente");
+            btnReiniciar.setBounds(300, 250, 200, 40);
+            btnReiniciar.addActionListener(e -> {
+                GamePanel novoJogo = new GamePanel(frame, 30, 2);
+                frame.setContentPane(novoJogo);
                 frame.revalidate();
-                newGame.requestFocusInWindow();
+                novoJogo.requestFocusInWindow();
             });
-            add(reiniciarBtn);
+            add(btnReiniciar);
+
+            JButton btnSair = new JButton("Sair");
+            btnSair.setBounds(350, 320, 100, 40);
+            btnSair.addActionListener(e -> System.exit(0));
+            add(btnSair);
         }
     }
-
-    // Classe main para iniciar o jogo
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("Jogo de Reciclagem");
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setResizable(false);
-
-            GamePanel gamePanel = new GamePanel(frame);
-            frame.setContentPane(gamePanel);
-            frame.pack();
-            frame.setLocationRelativeTo(null);
-            frame.setVisible(true);
-
-            // Garante que ao fechar a janela o programa encerre
-            frame.addWindowListener(new WindowAdapter() {
-                @Override
-                public void windowClosing(WindowEvent e) {
-                    System.exit(0);
-                }
-            });
-        });
-    }
 }
-
-

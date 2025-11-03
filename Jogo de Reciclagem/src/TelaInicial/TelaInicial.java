@@ -1,34 +1,58 @@
-package java_aps;
-import GamePanel.GamePanel;
+package JogoReciclagem;
 
-import java.awt.BorderLayout;
-import java.awt.Font;
-
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.SwingConstants;
+import javax.swing.*;
+import java.awt.*;
 
 public class TelaInicial extends JPanel {
-    private JFrame frame;
 
-    public TelaInicial(JFrame frame) {
+    private final JogoReciclagem frame;
+    private final JComboBox<String> dificuldadeBox;
+    private final JTextField tempoField;
+
+    public TelaInicial(JogoReciclagem frame) {
         this.frame = frame;
-        setLayout(new BorderLayout());
-        JLabel titulo = new JLabel("Jogo da Reciclagem", SwingConstants.CENTER);
-        titulo.setFont(new Font("Arial", Font.BOLD, 30));
-        add(titulo, BorderLayout.CENTER);
+        setLayout(null);
+        setBackground(new Color(240, 255, 240));
 
-        JButton btnIniciar = new JButton("Iniciar Jogo");
-        btnIniciar.setFont(new Font("Arial", Font.PLAIN, 20));
-        btnIniciar.addActionListener(e -> startGame());
-        add(btnIniciar, BorderLayout.SOUTH);
+        JLabel titulo = new JLabel("Jogo da Reciclagem");
+        titulo.setFont(new Font("Arial", Font.BOLD, 36));
+        titulo.setBounds(220, 50, 400, 50);
+        add(titulo);
+
+        JLabel tempoLabel = new JLabel("Tempo (segundos):");
+        tempoLabel.setFont(new Font("Arial", Font.PLAIN, 18));
+        tempoLabel.setBounds(300, 150, 200, 30);
+        add(tempoLabel);
+
+        tempoField = new JTextField("30");
+        tempoField.setBounds(450, 150, 80, 30);
+        add(tempoField);
+
+        JLabel dificuldadeLabel = new JLabel("Dificuldade:");
+        dificuldadeLabel.setFont(new Font("Arial", Font.PLAIN, 18));
+        dificuldadeLabel.setBounds(300, 200, 200, 30);
+        add(dificuldadeLabel);
+
+        String[] opcoes = {"Fácil", "Médio", "Difícil"};
+        dificuldadeBox = new JComboBox<>(opcoes);
+        dificuldadeBox.setBounds(450, 200, 100, 30);
+        add(dificuldadeBox);
+
+        JButton iniciarBtn = new JButton("Iniciar Jogo");
+        iniciarBtn.setBounds(325, 300, 150, 40);
+        iniciarBtn.addActionListener(e -> startGame());
+        add(iniciarBtn);
     }
 
     private void startGame() {
-        frame.setContentPane(new GamePanel(frame));
-        frame.revalidate();
+        int tempo = 30;
+        int dificuldade = 2; // Médio como padrão
+        try {
+            tempo = Integer.parseInt(tempoField.getText());
+        } catch (NumberFormatException ignored) {}
+
+        dificuldade = dificuldadeBox.getSelectedIndex() + 1;
+
+        frame.iniciarJogo(tempo, dificuldade);
     }
 }
-
